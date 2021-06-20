@@ -506,7 +506,10 @@ fancyRpartPlot(modDT)</code></pre>
 <pre class="r"><code>predDT &lt;- predict(modDT, valid, type = &quot;class&quot;)
 conmat1 &lt;- confusionMatrix(predDT, valid$classe)
 acc1 &lt;- conmat1$overall[&quot;Accuracy&quot;]</code></pre>
-<p>Accuracy of decision tree <strong><code>0.8809135</code></strong> on valid data ## Random forest</p>
+<p>Accuracy of decision tree <strong><code>0.8809135</code></strong> on valid data</p>
+</div>
+<div id="random-forest" class="section level2">
+<h2>Random forest</h2>
 <pre class="r"><code>set.seed(553)
 library(randomForest)
 modRF &lt;- randomForest(classe ~ . , data = train[-1])
