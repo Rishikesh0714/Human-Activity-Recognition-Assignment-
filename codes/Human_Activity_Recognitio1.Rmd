@@ -1,0 +1,183 @@
+---
+title: "Human Activity Recognition (Assignment)"
+author: "Rishikesh Pillay"
+date: "6/20/2021"
+output: html_document
+---
+# Overview 
+One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, my goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the [website here](http://groupware.les.inf.puc-rio.br/har) 
+Steps Involve :
+
+1. Getting and Cleaning Data 
+2. Subseting data
+3. Exploratory Data analysis
+4. Model Comparison and selection
+5. Conclusion and Prediction
+
+# Data sets
+
+The [training](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) data for this project are available
+The [test](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv data are available here:)
+
+# Getting and Preprocessing  Data
+
+I god Data from above links for training and testing .
+There were too many empty input which I parse to "NA" when Reading data 
+```{r Read Data }
+pml_training <-
+        read.csv(
+                "D:/Science/R_proggrame_coursera/Practical_Machine_Learning/Assignment ML/Data/pml-training.csv"
+                ,
+                na.strings = c(" ", "", "NA")
+        )
+
+pml_testing <-
+        read.csv(
+                "D:/Science/R_proggrame_coursera/Practical_Machine_Learning/Assignment ML/Data/pml-testing.csv"
+                ,
+                na.strings = c(" ", "", "NA")
+        )
+```
+
+while cleaning I converted all numeric Nas in zero.There are 160 variables and almost all of them are numeric.
+
+```{r Cleaning, message=FALSE, warning=FALSE}
+library(lubridate)
+
+pml_training$cvtd_timestamp <-
+        as_datetime(pml_training$cvtd_timestamp)
+pml_testing$cvtd_timestamp <-
+        as_datetime(pml_testing$cvtd_timestamp)
+pml_training$classe <-
+        as.factor(pml_training$classe)
+pml_training[is.na(pml_training)] <- 0
+pml_testing[is.na(pml_testing)] <- 0
+```
+
+While Preprocessing Data I checked which variable have minimum or near zero variance , and drop them as they were no good for modal training .After this my variable drop from 160 to 59.
+
+```{r Preprocessing, message=FALSE, warning=FALSE}
+library(caret)
+set.seed(4321)
+
+NZV <- nearZeroVar(pml_training)
+
+# Data division
+inTrain <-
+        createDataPartition(pml_training$classe, p = 0.75, list = FALSE)
+train <- pml_training[inTrain, -NZV]
+valid <- pml_training[-inTrain, -NZV]
+```
+
+For next step I divided training data(19622 obs) into two groups train and valid . I will use valid data to check out of sample error . And in end use Test data to answer final prediction.
+
+# Exploratory Data anlysis 
+ 
+My train data has dimension 14718 observation over 59 variables
+Validation data has 4904 observation 
+Now check correlation of data over other variables
+
+```{r EDA, message=FALSE, warning=FALSE}
+library(corrplot)
+mat <- cor(train[-c(2, 3, 4, 5, 59)])
+corrplot(
+        mat,
+        type = "lower",
+        method = "color",
+        tl.cex = 0.6,
+        tl.col = rgb(0, 0, 0)
+)
+```
+
+Darker colour indicates higher correlation .I did heatmap and summary on data but since its large data it was not much help .You can find them in my github repo.
+There are 5 type of Classe "A","B","C","D", "E"
+
+# Model selection
+
+I am using or rather checking accuracy against valid data and choose the best one.
+
+1. Decision Tree
+2. Random Forest
+3. Generalized Boosted Model
+
+## Decision Tree
+
+```{r DT, message=FALSE, warning=FALSE, cache=TRUE}
+set.seed(534)
+library(rpart)
+library(rattle)
+modDT <- rpart(classe ~ ., data  = train[-1], method = 'class')
+fancyRpartPlot(modDT)
+```
+```{r pred1 }
+predDT <- predict(modDT, valid, type = "class")
+conmat1 <- confusionMatrix(predDT, valid$classe)
+acc1 <- conmat1$overall["Accuracy"]
+
+```
+Accuracy of decision tree **``r acc1``** on valid data 
+## Random forest 
+
+```{r RF,cache = TRUE,message=FALSE, warning=FALSE}
+
+set.seed(553)
+library(randomForest)
+modRF <- randomForest(classe ~ . , data = train[-1])
+
+#prediction
+predRF <- predict(modRF, valid, type = "class")
+conmat2 <- confusionMatrix(predRF, valid$classe)
+acc2 <- conmat2$overall["Accuracy"]
+acc2
+```
+Accuracy of Random forest **``r acc2``** on valid data
+
+## Gradiant Boosting Model
+
+```{r GBM, message=FALSE, warning=FALSE, cache=FALSE}
+
+library(gbm)
+set.seed(332)
+modGbm <- gbm(classe ~ ., data = train[-c(1, 2, 3, 4, 5)])
+summary(modGbm, cBars = 20)
+```
+
+```{r pred,cache=TRUE, message=FALSE, warning=FALSE}
+predGBM <- predict.gbm(modGbm, valid, type = "response")
+labels = colnames(predGBM)[apply(predGBM, 1, which.max)]
+conmat3 <- confusionMatrix(as.factor(labels), valid$classe)
+acc3 <-  conmat3$overall['Accuracy']
+acc3
+
+```
+The predicted result is not easy-readable data so we'll get class names with the highest prediction value.
+Accuracy of Gradient Boosting Model **``r acc3``** on valid data
+
+# Conclusion
+
+accuracy = weights false positives/negatives equal
+
+```{r table,  echo=FALSE}
+
+acc <- c(acc1, acc2, acc3)
+model <- c("DT", "RF", "GBM")
+
+data.frame(model, acc)
+```
+
+* As Random forest have large accuracy I will select that model for prediction on test data set
+* Gbm model is good for inference for which features are good for modeling (These do not refer to the variance.)
+
+## Prediction
+
+```{r prediction, cache= TRUE, message=FALSE, warning=FALSE}
+library(randomForest)
+prediction <- predict(modRF, pml_testing, type = "class")
+prediction
+```
+
+* I could have used stacking of prediction but I didn't as Random forest gives good prediction.
+* You have notice I used randomforest and gbm packages instead of caret ,because train function was taking too much time and computing power for large training dataset
+* You can find other plots like heatmap in outputs folder in github repo I didn't included it here since it was not giving relevant information
+
