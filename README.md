@@ -22,6 +22,7 @@ Data : Data for Modeling and Testing
 * pml_Testing
 
 Output : plots and prediction 
+* Human Activity Recognization .pdf(Readble)
 * correlation_plot.jpeg
 * Decision_Tree.png
 * Heatmap.png
